@@ -36,7 +36,8 @@ mongoose.set('useCreateIndex', true);
 const userSchema = new mongoose.Schema( {
     email : String,
     password : String,
-    googleId : String
+    googleId : String,
+    secrets : String,
 });
 
 userSchema.plugin(passportLocalMongoose);
@@ -67,7 +68,7 @@ passport.use(new GoogleStrategy({
     passReqToCallback   : true
   },
   function(request, accessToken, refreshToken, profile, done) {
-     console.log(profile);
+     //console.log(profile);
     User.findOrCreate({ googleId: profile.id }, function (err, user) {
       return done(err, user);
     });
@@ -99,12 +100,25 @@ app.get("/register",function(req,res){
 
 
 app.get("/secrets",function(req,res){
+    User.find({secrets:  { $ne: null }},function(err,foundUser){
+        if(err){
+            console.log(err);
+        }else{
+            if(foundUser){
+                res.render("secrets",{usersWithSecrets : foundUser});
+            }
+        }
+    })
+})
+
+app.get("/submit",function(req,res){
     if(req.isAuthenticated()){
-        res.render("secrets");
+        res.render("submit");
     }else{
         res.redirect("/login");
     }
 })
+
 
 app.get("/logout",function(req,res){
     req.logout();
@@ -147,6 +161,24 @@ app.post("/register",function(req,res){
  
 });
 
+app.post("/submit",function(req,res){
+    const submittedSecrets = req.body.secret;
+    //console.log(req.user);
+    User.findById(req.user.id,function(err,foundUser){
+        if(err){
+            console.log(err);
+        }else{
+            if(foundUser){
+                foundUser.secrets = submittedSecrets;
+                foundUser.save(function(err){
+                    if(!err){
+                        res.redirect("/secrets");
+                    }
+                })
+            }
+        }
+    })
+})
 
 app.listen(3000,function(){
     console.log("Server started on port 3000");
